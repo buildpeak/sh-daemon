@@ -1,5 +1,7 @@
 #!/bin/sh -e
 
+FILES=$(dirname $(mktemp -u))/$(basename ${PWD})-files
+
 if test $(uname) = "Linux"; then
     os_type="linux"
 elif test $(uname) = "Darwin"; then
@@ -15,23 +17,23 @@ file_mtime() {
 }
 
 file_list() {
-    find ${PWD} -type f -not -regex "^.*/\..*$"
+    find ${PWD} -type f -name "*.*" -not -regex "^.*/\..*$"
 }
 
 list_files() {
-    >.files
+    >$FILES
     for f in $(file_list); do
-        echo "$f=$(file_mtime $f)" >> .files
+        echo "$f=$(file_mtime $f)" >> $FILES
     done
 }
 
 update_files() {
     if test "$old_mtime" = ""; then
-        echo "$f=$new_mtime" >> .files
+        echo "$f=$new_mtime" >> $FILES
     elif test "$os_type" = "bsd"; then
-        sed -i '' "s|$f=$old_mtime|$f=$new_mtime|" .files
+        sed -i '' "s|$f=$old_mtime|$f=$new_mtime|" $FILES
     else
-        sed -i "s|$f=$old_mtime|$f=$new_mtime|" .files
+        sed -i "s|$f=$old_mtime|$f=$new_mtime|" $FILES
     fi
 }
 
@@ -41,7 +43,7 @@ files_changed() {
             continue
         fi
         new_mtime=$(file_mtime $f)
-        old_mtime=$(grep "$f=[0-9]\+" .files | awk -F'=' '{print $2}')
+        old_mtime=$(grep "$f=[0-9]\+" $FILES | awk -F'=' '{print $2}')
         if test "$new_mtime" != "$old_mtime"; then
             echo $f
             update_files
@@ -85,7 +87,7 @@ spawn_child "$*"
 
 trap "kill_proc $child; exit 0" INT TERM
 
-while [ 1 ]; do
+while true; do
     changed=$(files_changed)
     if test "$changed" != ""; then
         echo "\033[1;32mFiles $changed changed\033[0m"
