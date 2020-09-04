@@ -10,21 +10,23 @@ fi
 
 file_mtime() {
     if test "$os_type" = "linux"; then
-        stat -c %Y $1
+        stat -c %Y "$1"
     elif test "$os_type" = "bsd"; then
-        stat -f %m $1
+        stat -f %m "$1"
     fi
 }
 
 file_list() {
-    find ${PWD} -type f -name "*.*" -not -regex "^.*/\..*$"
+    find ${PWD} -type f -name "*.*" -not -regex "^.*/\..*$" -not -regex "^.*/local/.*$"
 }
 
 list_files() {
     >$FILES
+    oIFS=$IFS IFS=$'\n'
     for f in $(file_list); do
         echo "$f=$(file_mtime $f)" >> $FILES
     done
+    IFS=$oIFS
 }
 
 update_files() {
@@ -43,7 +45,7 @@ files_changed() {
             continue
         fi
         new_mtime=$(file_mtime $f)
-        old_mtime=$(grep "$f=[0-9]\+" $FILES | awk -F'=' '{print $2}')
+        old_mtime=$(grep "$f=[0-9]\+" $FILES | cut -d'=' -f2)
         if test "$new_mtime" != "$old_mtime"; then
             echo $f
             update_files
